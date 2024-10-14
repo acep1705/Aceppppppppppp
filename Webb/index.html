@@ -1,0 +1,362 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slot Machine</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+        }
+        .slot-machine {
+            display: grid;
+            grid-template-columns: repeat(4, 60px); /* Ukuran kolom 60px */
+            grid-template-rows: repeat(3, 60px); /* Ukuran baris 60px */
+            gap: 0; /* Tidak ada celah antara kotak */
+            background: #fff;
+            border: 2px solid #ccc;
+            border-radius: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+        .item {
+            width: 60px; /* Ukuran item 60px */
+            height: 60px; /* Ukuran item 60px */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2.5em; /* Ukuran font agar pas di dalam kotak */
+            background-color: #e0e0e0; /* Warna latar belakang item */
+            position: absolute;
+            top: -60px; /* Mulai dari luar layar */
+            opacity: 0; /* Mulai tidak terlihat */
+            transition: top 0.5s ease, opacity 0.5s ease;
+        }
+        button {
+            margin-top: 30px;
+            padding: 10px 20px;
+            font-size: 1.2em;
+            cursor: pointer;
+        }
+        .controls {
+            margin: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        input {
+            margin: 5px;
+            padding: 5px;
+            font-size: 1em;
+        }
+        .scatter-container {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #fff;
+            border: 2px solid #ccc;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+        .scatter-item {
+            width: 50px;
+            height: 50px;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #e0e0e0;
+            border: 1px solid #aaa;
+            border-radius: 5px;
+            margin: 5px;
+            cursor: pointer;
+        }
+        .chosen-box {
+            width: 50px;
+            height: 50px;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            border: 2px dashed #aaa;
+            margin: 5px;
+            cursor: pointer;
+        }
+        .chosen-boxes {
+            display: grid;
+            grid-template-columns: repeat(4, 50px);
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="slot-machine" id="slotMachine">
+    <div class="item" id="item1"></div>
+    <div class="item" id="item2"></div>
+    <div class="item" id="item3"></div>
+    <div class="item" id="item4"></div>
+    <div class="item" id="item5"></div>
+    <div class="item" id="item6"></div>
+    <div class="item" id="item7"></div>
+    <div class="item" id="item8"></div>
+    <div class="item" id="item9"></div>
+    <div class="item" id="item10"></div>
+    <div class="item" id="item11"></div>
+    <div class="item" id="item12"></div>
+</div>
+
+<div class="controls">
+    <div>Saldo: <span id="saldo">Rp. 100000</span></div>
+    <input type="number" id="bet" placeholder="Masukkan taruhan" min="1" />
+    <button id="spinButton" onclick="spin()">Spin</button>
+    <button id="buyScatterButton" onclick="buyScatter()">Beli Scatter</button>
+</div>
+
+<div class="scatter-container" id="scatterContainer">
+    <h3>Pilih Item</h3>
+    <div id="scatterItems"></div>
+    <div class="chosen-boxes" id="chosenBoxes"></div>
+    <button onclick="closeScatter()">Tutup</button>
+</div>
+
+<script>
+    const items = ['👑', '🎒', '👓', '🕶', '🌂', '👜', '👢', '👠', '🧢', '🥻', '👘', '👙', '⛑️', '🚎', '🛻', '🗿', '😍'];
+    
+    // Hadiah berdasarkan item dan jumlah kemunculan
+    const payouts = {
+        '👑': [0, 0, 3, 4, 5.2],
+        '🎒': [0, 0, 1.7, 2.3, 3.7],
+        '👓': [0, 0, 1.4, 2.1, 2.7],
+        '🕶': [0, 0, 1.2, 1.5, 2.2],
+        '🌂': [0, 0, 1.1, 1.4, 1.7],
+        '👜': [0, 0, 1, 1.2, 1.7],
+        '👢': [0, 0, 1.5, 1.8, 2.0],
+        '👠': [0, 0, 2.0, 2.5, 3.0],
+        '🧢': [0, 0, 1.8, 2.2, 2.6],
+        '🥻': [0, 0, 1.3, 1.6, 2.1],
+        '👘': [0, 0, 1.4, 1.9, 2.5],
+        '👙': [0, 0, 1.6, 2.0, 2.8],
+        '⛑️': [0, 0, 1.5, 1.7, 2.5],
+        '🚎': [0, 0, 2.2, 2.9, 3.5],
+        '🛻': [0, 0, 1.9, 2.4, 3.0],
+        '🗿': [0, 0, 0, 0, 0], // Scatter item, tidak ada payout
+        '😍': [0, 0, 0, 0, 0]  // Zonk item, tidak ada payout
+    };
+
+    let saldo = 100000;
+    let totalScatterWinnings = 0;
+    let scatterAttempts = 0;
+
+    function formatCurrency(value) {
+        return 'Rp. ' + value.toLocaleString(); // Format saldo dengan Rp.
+    }
+
+    function getRandomItem() {
+        const randomIndex = Math.floor(Math.random() * items.length);
+        return items[randomIndex];
+    }
+
+    function spin() {
+        const itemElements = document.querySelectorAll('.item');
+        const bet = parseInt(document.getElementById('bet').value) || 0;
+
+        if (bet <= 0) {
+            alert('Silakan masukkan jumlah taruhan!');
+            return;
+        }
+
+        if (bet > saldo) {
+            alert('Saldo tidak cukup untuk memasang taruhan!');
+            return;
+        }
+
+        saldo -= bet;
+        document.getElementById('saldo').textContent = formatCurrency(saldo);
+
+        // Reset item position
+        itemElements.forEach((item) => {
+            item.style.top = '-60px'; // Reset posisi item
+            item.style.opacity = 0; // Mulai tidak terlihat
+        });
+
+        // Animasi jatuh item
+        itemElements.forEach((item, index) => {
+            setTimeout(() => {
+                const randomItem = getRandomItem();
+                item.textContent = randomItem;
+
+                // Menghitung posisi sesuai grid 4x3
+                const col = index % 4; // Kolom
+                const row = Math.floor(index / 4); // Baris
+                const positionY = row * 60; // Menghitung posisi Y
+                const positionX = col * 60; // Menghitung posisi X
+                
+                item.style.left = `${positionX}px`; // Atur posisi X
+                item.style.top = `${positionY}px`; // Atur posisi Y
+                item.style.opacity = 1; // Menampilkan item
+            }, index * 300); // Jeda waktu antara setiap item
+        });
+
+        // Menghitung hasil setelah semua item jatuh
+        setTimeout(() => {
+            calculateResults(itemElements, bet);
+        }, itemElements.length * 300); // Menunggu hingga semua item jatuh
+    }
+
+    function calculateResults(itemElements, bet) {
+        const results = Array.from(itemElements).map(item => item.textContent);
+        const counts = countItems(results);
+
+        let totalWinnings = 0;
+
+        for (const [item, count] of Object.entries(counts)) {
+            if (item === '🗿' && count >= 2) { // Cek jika ada 2 item 🗿
+                triggerScatter();
+            } else if (count >= 3) { // Hanya hitung jika ada minimal 3 item yang sama
+                totalWinnings += calculateWinnings(item, count, bet);
+            }
+        }
+
+        saldo += totalWinnings;
+        document.getElementById('saldo').textContent = formatCurrency(saldo);
+    }
+
+    function countItems(arr) {
+        return arr.reduce((acc, item) => {
+            acc[item] = (acc[item] || 0) + 1;
+            return acc;
+        }, {});
+    }
+
+    function calculateWinnings(item, count, bet) {
+        return payouts[item][count] ? payouts[item][count] * bet : 0;
+    }
+
+    function triggerScatter() {
+        // Tampilkan scatter container
+        document.getElementById('scatterContainer').style.display = 'block';
+        generateScatterItems();
+        totalScatterWinnings = 0; // Reset total winnings untuk scatter
+        scatterAttempts = 0; // Reset jumlah percobaan
+    }
+
+    function closeScatter() {
+        document.getElementById('scatterContainer').style.display = 'none';
+        saldo += totalScatterWinnings; // Tambahkan kemenangan scatter ke saldo
+        document.getElementById('saldo').textContent = formatCurrency(saldo);
+        continueSpinning(); // Lanjutkan ke spin normal
+    }
+
+    function generateScatterItems() {
+        const scatterItemsContainer = document.getElementById('scatterItems');
+        scatterItemsContainer.innerHTML = ''; // Kosongkan konten sebelumnya
+
+        // Tambahkan 4 item 🗿
+        for (let i = 0; i < 4; i++) {
+            const item = document.createElement('div');
+            item.classList.add('scatter-item');
+            item.textContent = '🗿';
+            scatterItemsContainer.appendChild(item);
+        }
+
+        // Tambahkan 6 item 👑
+        for (let i = 0; i < 6; i++) {
+            const item = document.createElement('div');
+            item.classList.add('scatter-item');
+            item.textContent = '👑';
+            scatterItemsContainer.appendChild(item);
+        }
+
+        // Tambahkan 2 item 😍 sebagai zonk
+        for (let i = 0; i < 2; i++) {
+            const item = document.createElement('div');
+            item.classList.add('scatter-item');
+            item.textContent = '😍';
+            scatterItemsContainer.appendChild(item);
+        }
+
+        // Acak urutan item
+        shuffleItems(scatterItemsContainer);
+        createChosenBoxes(); // Membuat kotak pilihan
+    }
+
+    function shuffleItems(container) {
+        const items = Array.from(container.children);
+        items.sort(() => Math.random() - 0.5); // Acak urutan
+        container.innerHTML = ''; // Kosongkan konten sebelumnya
+        items.forEach(item => container.appendChild(item)); // Tambahkan kembali item yang diacak
+    }
+
+    function createChosenBoxes() {
+        const chosenBoxesContainer = document.getElementById('chosenBoxes');
+        chosenBoxesContainer.innerHTML = ''; // Kosongkan konten sebelumnya
+
+        // Buat 16 kotak kosong untuk pilihan
+        for (let i = 0; i < 16; i++) {
+            const box = document.createElement('div');
+            box.classList.add('chosen-box');
+            box.onclick = () => fillBoxWithItem(box); // Ketika kotak diklik, isi dengan item
+            chosenBoxesContainer.appendChild(box);
+        }
+    }
+
+    function fillBoxWithItem(box) {
+        // Isi kotak yang dipilih dengan item acak
+        if (scatterAttempts < 8) {
+            const randomItem = getRandomItem(); // Ambil item acak
+            box.textContent = randomItem; // Tampilkan item dalam kotak
+            scatterAttempts++;
+            
+            if (randomItem === '🗿') {
+                totalScatterWinnings += (3 * parseInt(document.getElementById('bet').value)); // Kemenangan jika menebak 🗿
+                alert(`Anda menebak item 🗿! Kemenangan anda: ${totalScatterWinnings}`);
+            } else if (randomItem === '😍') {
+                alert('Zonk! Anda telah menghabiskan kesempatan.');
+            } else {
+                alert(`Anda menebak item ${randomItem}!`);
+            }
+
+            // Tutup scatter jika sudah 4 kali percobaan
+            if (scatterAttempts >= 8 || randomItem === '😍') {
+                closeScatter();
+            }
+        } else {
+            alert('Anda sudah menghabiskan semua kesempatan!');
+        }
+    }
+
+    function continueSpinning() {
+        // Logic untuk melakukan 2x spin normal jika ada kemenangan dari scatter
+        const normalSpinCount = 2; // Jumlah spin normal
+        for (let i = 0; i < normalSpinCount; i++) {
+            setTimeout(() => {
+                spin(); // Memanggil fungsi spin
+            }, i * 2000); // Jeda 2 detik antara setiap spin
+        }
+    }
+
+    function buyScatter() {
+        const bet = parseInt(document.getElementById('bet').value) || 0;
+        const scatterCost = bet * 10; // Harga scatter adalah 10x taruhan
+
+        if (saldo >= scatterCost) {
+            saldo -= scatterCost; // Kurangi saldo
+            document.getElementById('saldo').textContent = formatCurrency(saldo);
+            triggerScatter(); // Memicu scatter
+        } else {
+            alert('Saldo tidak cukup untuk membeli scatter!');
+        }
+    }
+</script>
+
+</body>
+</html>
